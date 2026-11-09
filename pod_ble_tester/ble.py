@@ -1,7 +1,7 @@
 """BLE side of the tester: find a Pod by serial number, connect, report.
 
-Bloom Pods advertise a local name of the form ``BLOOM_<x><serial>`` where
-``<x>`` is a single revision letter (``M`` on current pods). A test consists of:
+Bloom Pods advertise a local name of the form ``BLOOM_M<serial>``. A test
+consists of:
 
 1. scanning until an advertisement whose name matches the serial is seen,
 2. opening a GATT connection to that device (service discovery included),
@@ -36,15 +36,14 @@ def normalize_serial(raw: str) -> str:
     name. Both end up as the bare serial, e.g. ``"BLOOM_M12345678"`` -> ``"12345678"``.
     """
     value = raw.strip()
-    match = re.fullmatch(re.escape(config.POD_NAME_PREFIX) + r".(.+)", value)
-    if match:
-        value = match.group(1)
+    if value.startswith(config.POD_NAME_PREFIX) and len(value) > len(config.POD_NAME_PREFIX):
+        value = value[len(config.POD_NAME_PREFIX):]
     return value
 
 
 def expected_name_pattern(serial: str) -> re.Pattern[str]:
     """Regex matching the advertised name of the pod with ``serial``."""
-    return re.compile(rf"^{re.escape(config.POD_NAME_PREFIX)}.{re.escape(serial)}$")
+    return re.compile(rf"^{re.escape(config.POD_NAME_PREFIX)}{re.escape(serial)}$")
 
 
 def name_matches(serial: str, name: Optional[str]) -> bool:
@@ -102,7 +101,7 @@ async def find_pod(
         async with BleakScanner(detection_callback=on_advertisement):
             return await found
 
-    await _emit(status, "scanning", f"Scanning for {config.POD_NAME_PREFIX}?{serial} (up to {timeout:.0f}s)")
+    await _emit(status, "scanning", f"Scanning for {config.POD_NAME_PREFIX}{serial} (up to {timeout:.0f}s)")
     # The timeout covers scanner start-up too: on macOS the first launch can
     # block on the Bluetooth permission prompt / adapter power-on wait.
     return await asyncio.wait_for(scan(), timeout=timeout)
@@ -129,7 +128,7 @@ async def test_pod(
     try:
         device, adv = await find_pod(serial, scan_timeout, track)
     except asyncio.TimeoutError:
-        outcome.error = f"Pod not found: no advertisement named {config.POD_NAME_PREFIX}?{serial} within {scan_timeout:.0f}s"
+        outcome.error = f"Pod not found: no advertisement named {config.POD_NAME_PREFIX}{serial} within {scan_timeout:.0f}s"
         outcome.duration_s = round(time.monotonic() - started, 2)
         await track("done", outcome.error)
         return outcome

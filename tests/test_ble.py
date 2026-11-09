@@ -13,7 +13,7 @@ from pod_ble_tester import ble
         ("12345678", "12345678"),
         ("  12345678\n", "12345678"),
         ("BLOOM_M12345678", "12345678"),
-        ("BLOOM_X12345678", "12345678"),
+        ("BLOOM_X12345678", "BLOOM_X12345678"),  # not our prefix, left alone
         ("", ""),
     ],
 )
@@ -25,10 +25,10 @@ def test_normalize_serial(raw, expected):
     "serial, name, ok",
     [
         ("12345678", "BLOOM_M12345678", True),
-        ("12345678", "BLOOM_A12345678", True),
+        ("12345678", "BLOOM_A12345678", False),  # wrong revision letter
         ("12345678", "BLOOM_M123456789", False),  # longer serial
         ("12345678", "BLOOM_M1234567", False),
-        ("12345678", "BLOOM_12345678", False),  # missing revision letter
+        ("12345678", "BLOOM_12345678", False),  # missing M
         ("12345678", "MBAND_12345678", False),
         ("12345678", None, False),
         ("123.45", "BLOOM_M123X45", False),  # regex metachars are escaped

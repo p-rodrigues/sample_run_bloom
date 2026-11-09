@@ -59,7 +59,7 @@
       <input type="text" id="serial" name="serial" placeholder="Scan or type the Pod serial number and press Enter" autofocus>
       <button type="submit" class="primary">Test</button>
     </form>
-    <div class="hint" id="hint">Looks for a device advertising as <code id="namefmt">BLOOM_?&lt;serial&gt;</code>, connects over GATT and records the result.</div>
+    <div class="hint" id="hint">Looks for a device advertising as <code id="namefmt">BLOOM_M&lt;serial&gt;</code>, connects over GATT and records the result.</div>
     <div id="queue"></div>
   </div>
 
@@ -136,7 +136,7 @@
   async function loadConfig() {
     try {
       const c = await fetch('/api/config').then(x => x.json());
-      $('namefmt').textContent = c.pod_name_prefix + '?<serial>';
+      $('namefmt').textContent = c.pod_name_prefix + '<serial>';
     } catch (e) { /* ignore */ }
   }
 
