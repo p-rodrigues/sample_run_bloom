@@ -1,0 +1,2 @@
+[console_scripts]
+pod-ble-tester = pod_ble_tester.server:main

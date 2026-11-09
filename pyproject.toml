@@ -1,0 +1,29 @@
+[project]
+name = "pod-ble-tester"
+version = "0.1.0"
+description = "Bloom Pod Bluetooth connection tester: scan a serial, find the Pod over BLE, connect, record PASS/FAIL."
+requires-python = ">=3.10"
+dependencies = [
+    "bleak>=0.22",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+pod-ble-tester = "pod_ble_tester.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pod_ble_tester*"]
+
+[tool.setuptools.package-data]
+pod_ble_tester = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

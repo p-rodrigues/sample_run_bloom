@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloom Pod BLE Tester</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --text: #1b1f24; --muted: #6b7280; --line: #e5e7eb;
+    --pass: #15803d; --pass-bg: #dcfce7; --fail: #b91c1c; --fail-bg: #fee2e2;
+    --busy: #1d4ed8; --busy-bg: #dbeafe; --accent: #111827;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #171a21; --text: #e6e8ec; --muted: #9aa3af; --line: #2a2f3a;
+            --pass-bg: #0f3d22; --fail-bg: #4a1414; --busy-bg: #12284f; --accent: #e6e8ec; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  label { font-weight: 600; }
+  input[type=text] { flex: 1; min-width: 220px; font-size: 22px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 8px; background: transparent; color: var(--text); letter-spacing: 1px; }
+  input[type=text]:focus { outline: none; border-color: var(--busy); }
+  button, a.button { font-size: 15px; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; text-decoration: none; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  #banner { font-size: 20px; font-weight: 700; padding: 18px; border-radius: 10px; text-align: center; margin-bottom: 16px; border: 1px solid var(--line); }
+  #banner.idle { background: var(--card); color: var(--muted); font-weight: 500; }
+  #banner.busy { background: var(--busy-bg); color: var(--busy); }
+  #banner.pass { background: var(--pass-bg); color: var(--pass); font-size: 34px; }
+  #banner.fail { background: var(--fail-bg); color: var(--fail); font-size: 34px; }
+  #banner small { display: block; font-size: 14px; font-weight: 500; margin-top: 6px; opacity: .85; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stats { display: flex; gap: 14px; color: var(--muted); }
+  .stats b { color: var(--text); }
+  .stats .p b { color: var(--pass); } .stats .f b { color: var(--fail); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td.serial { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+  .badge.PASS { background: var(--pass-bg); color: var(--pass); }
+  .badge.FAIL { background: var(--fail-bg); color: var(--fail); }
+  td.err { color: var(--muted); max-width: 360px; }
+  .empty { color: var(--muted); text-align: center; padding: 24px; }
+  #conn { font-size: 12px; color: var(--muted); }
+  #queue { font-size: 13px; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bloom Pod BLE Tester <span id="conn"></span></h1>
+
+  <div class="card">
+    <form id="form" autocomplete="off">
+      <label for="serial">Pod serial</label>
+      <input type="text" id="serial" name="serial" placeholder="Scan or type the Pod serial number and press Enter" autofocus>
+      <button type="submit" class="primary">Test</button>
+    </form>
+    <div class="hint" id="hint">Looks for a device advertising as <code id="namefmt">BLOOM_?&lt;serial&gt;</code>, connects over GATT and records the result.</div>
+    <div id="queue"></div>
+  </div>
+
+  <div id="banner" class="idle">Ready. Scan a Pod.</div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="stats">
+        <span>Tested <b id="n-total">0</b></span>
+        <span class="p">Pass <b id="n-pass">0</b></span>
+        <span class="f">Fail <b id="n-fail">0</b></span>
+      </div>
+      <a class="button" href="/api/results.csv" download>Download CSV</a>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Serial</th><th>Result</th><th>Tested at</th><th>Connected at</th><th>Duration</th><th>BLE name</th><th>RSSI</th><th>Details</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty">No pods tested yet.</div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const input = $('serial'), banner = $('banner'), rows = $('rows'), empty = $('empty'), queueEl = $('queue'), conn = $('conn');
+
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return isNaN(d) ? esc(iso) : d.toLocaleString(undefined, { hour12: false });
+  }
+
+  function setBanner(cls, text, sub) {
+    banner.className = cls;
+    banner.innerHTML = esc(text) + (sub ? '<small>' + esc(sub) + '</small>' : '');
+  }
+
+  function renderSummary(s) {
+    $('n-total').textContent = s.total; $('n-pass').textContent = s.passed; $('n-fail').textContent = s.failed;
+  }
+
+  function renderRows(list) {
+    empty.style.display = list.length ? 'none' : '';
+    rows.innerHTML = list.map(r => `
+      <tr>
+        <td>${r.id}</td>
+        <td class="serial">${esc(r.serial_number)}</td>
+        <td><span class="badge ${r.result}">${r.result}</span></td>
+        <td>${fmtTime(r.tested_at)}</td>
+        <td>${fmtTime(r.connected_at)}</td>
+        <td>${r.duration_s != null ? r.duration_s.toFixed(1) + ' s' : ''}</td>
+        <td>${esc(r.ble_name)}</td>
+        <td>${r.rssi != null ? r.rssi + ' dBm' : ''}</td>
+        <td class="err">${esc(r.error)}</td>
+      </tr>`).join('');
+  }
+
+  function renderQueue(status) {
+    const parts = [];
+    if (status.current) parts.push('Testing ' + status.current);
+    if (status.queued && status.queued.length) parts.push('Queued: ' + status.queued.join(', '));
+    queueEl.textContent = parts.join(' · ');
+  }
+
+  async function refresh() {
+    const r = await fetch('/api/results').then(x => x.json());
+    renderRows(r.results); renderSummary(r.summary);
+  }
+
+  async function loadConfig() {
+    try {
+      const c = await fetch('/api/config').then(x => x.json());
+      $('namefmt').textContent = c.pod_name_prefix + '?<serial>';
+    } catch (e) { /* ignore */ }
+  }
+
+  $('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const serial = input.value.trim();
+    input.value = ''; input.focus();
+    if (!serial) return;
+    const resp = await fetch('/api/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serial }) });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      setBanner('fail', 'Rejected', err.detail || resp.statusText);
+      return;
+    }
+    const data = await resp.json();
+    renderQueue(data.status);
+    if (data.status.current && data.status.current !== data.serial) {
+      setBanner('busy', 'Queued ' + data.serial, 'Waiting for ' + data.status.current + ' to finish');
+    }
+  });
+
+  // Keep the input focused so a barcode scanner always lands in it.
+  document.addEventListener('click', (e) => { if (!e.target.closest('a, button, input')) input.focus(); });
+
+  let ws, retry = 1000;
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws`);
+    ws.onopen = () => { conn.textContent = '● live'; retry = 1000; refresh(); };
+    ws.onclose = () => { conn.textContent = '○ reconnecting…'; setTimeout(connect, retry); retry = Math.min(retry * 2, 10000); };
+    ws.onmessage = (m) => {
+      const ev = JSON.parse(m.data);
+      if (ev.status) renderQueue(ev.status);
+      if (ev.summary) renderSummary(ev.summary);
+      switch (ev.type) {
+        case 'status':
+          setBanner('busy', ev.serial + ' — ' + ev.stage, ev.message);
+          break;
+        case 'result': {
+          const r = ev.record;
+          setBanner(r.result === 'PASS' ? 'pass' : 'fail', r.result + '  ' + r.serial_number,
+                    r.result === 'PASS' ? 'Connected at ' + fmtTime(r.connected_at) + ' in ' + r.duration_s + ' s' : r.error);
+          refresh();
+          break;
+        }
+        case 'idle':
+          if (banner.classList.contains('busy')) setBanner('idle', 'Ready. Scan a Pod.');
+          break;
+      }
+    };
+  }
+
+  loadConfig(); refresh(); connect();
+  setInterval(() => { if (ws && ws.readyState === 1) ws.send('ping'); }, 20000);
+})();
+</script>
+</body>
+</html>
