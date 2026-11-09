@@ -22,4 +22,4 @@ DATA_DIR: Path = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parent
 DB_PATH: Path = Path(os.environ.get("DB_PATH", DATA_DIR / "results.db"))
 
 HOST: str = os.environ.get("HOST", "127.0.0.1")
-PORT: int = int(os.environ.get("PORT", "8765"))
+PORT: int = int(os.environ.get("PORT", "8764"))

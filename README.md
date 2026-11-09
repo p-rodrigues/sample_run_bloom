@@ -24,7 +24,7 @@ pip install -e ".[dev]"
 ## Run
 
 ```bash
-pod-ble-tester            # starts http://127.0.0.1:8765 and opens it in the browser
+pod-ble-tester            # starts http://127.0.0.1:8764 and opens it in the browser
 pod-ble-tester --no-browser --port 9000
 ```
 
@@ -50,7 +50,7 @@ A scanned value may be the bare serial or the full BLE name
 | `SCAN_TIMEOUT_S`    | `20`              | Seconds to wait for the Pod to be seen advertising   |
 | `CONNECT_TIMEOUT_S` | `15`              | Seconds allowed for the GATT connection              |
 | `DB_PATH`           | `data/results.db` | SQLite file holding all results                      |
-| `HOST` / `PORT`     | `127.0.0.1`/`8765`| Where the UI is served                               |
+| `HOST` / `PORT`     | `127.0.0.1`/`8764`| Where the UI is served                               |
 
 ## CSV columns
 
