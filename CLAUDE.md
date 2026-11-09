@@ -14,7 +14,7 @@ exportable as CSV. See README.md for operator usage and configuration.
 ```bash
 source .venv/bin/activate          # venv lives in .venv (gitignored)
 pip install -e ".[dev]"            # install package + pytest/httpx
-pod-ble-tester --no-browser        # run the server (http://127.0.0.1:8765)
+pod-ble-tester --no-browser        # run the server (http://127.0.0.1:8764)
 python -m pod_ble_tester.server    # same, without installing the entry point
 pytest                             # all tests
 pytest tests/test_ble.py -k connection   # one test / module
@@ -33,9 +33,9 @@ Three layers in `pod_ble_tester/`, wired together in `server.create_app()`:
   (never raises; failures become `error` text). Progress is reported through
   the async `status_cb(stage, message)` with stages
   `scanning, found, connecting, connected, done`. Pods advertise as
-  `BLOOM_<one revision letter><serial>` (current pods use `M`); matching is by
-  regex `^BLOOM_.<serial>$` so the letter is not hard-coded. `normalize_serial`
-  accepts either the bare serial or the full BLE name.
+  `BLOOM_M<serial>`; the name must match exactly (prefix from
+  `config.POD_NAME_PREFIX`). `normalize_serial` accepts either the bare serial
+  or the full BLE name.
 - `store.py` — `ResultStore`, a thin SQLite wrapper (one row per attempt,
   newest first in the API, chronological in CSV). CSV column order is
   `CSV_COLUMNS`; the UI table and README document the same columns.
@@ -47,7 +47,7 @@ Three layers in `pod_ble_tester/`, wired together in `server.create_app()`:
   `static/index.html` is the whole frontend (vanilla JS, no build step).
 
 Configuration is all in `config.py`, read from environment variables at import
-time. Defaults: `data/results.db`, port 8765, 20 s scan / 15 s connect timeouts.
+time. Defaults: `data/results.db`, port 8764, 20 s scan / 15 s connect timeouts.
 
 ## Conventions
 

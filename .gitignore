@@ -6,3 +6,4 @@ data/
 *.db
 *.csv
 .DS_Store
+*.egg-info/
