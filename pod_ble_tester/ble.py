@@ -8,7 +8,6 @@ serial is kept exactly as scanned. A test consists of:
 
 1. scanning until an advertisement whose name matches the serial is seen,
 2. opening a GATT connection to that device (service discovery included),
-   retrying a few times if the link drops while connecting,
 3. disconnecting cleanly.
 
 Any failure or timeout along the way is a FAIL with a human readable reason.
@@ -116,12 +115,10 @@ async def test_pod(
     status: Optional[StatusCallback] = None,
     scan_timeout: Optional[float] = None,
     connect_timeout: Optional[float] = None,
-    connect_attempts: Optional[int] = None,
 ) -> TestOutcome:
     """Run the full scan -> connect -> disconnect check for one pod."""
     scan_timeout = config.SCAN_TIMEOUT_S if scan_timeout is None else scan_timeout
     connect_timeout = config.CONNECT_TIMEOUT_S if connect_timeout is None else connect_timeout
-    connect_attempts = max(1, config.CONNECT_ATTEMPTS if connect_attempts is None else connect_attempts)
 
     started = time.monotonic()
     outcome = TestOutcome(serial=serial, passed=False, tested_at=_now_iso())
@@ -149,35 +146,19 @@ async def test_pod(
     outcome.rssi = adv.rssi
     await track("found", f"Found {outcome.ble_name} ({device.address}) RSSI {adv.rssi} dBm")
 
-    # 2. Connect (bleak performs service discovery as part of connect).
-    # A link that drops mid-connect (weak signal, pod busy) surfaces as
-    # "BleakError: disconnected"; that is usually transient, so retry.
-    for attempt in range(1, connect_attempts + 1):
-        outcome.error = None
-        suffix = f", attempt {attempt}/{connect_attempts}" if attempt > 1 else ""
-        await track("connecting", f"Connecting to {outcome.ble_name} (up to {connect_timeout:.0f}s{suffix})")
-        try:
-            async with BleakClient(device, timeout=connect_timeout) as client:
-                if not client.is_connected:
-                    raise RuntimeError("connect() returned but client is not connected")
-                outcome.connected_at = _now_iso()
-                outcome.service_count = len(list(client.services))
-                await track("connected", f"Connected, {outcome.service_count} GATT services discovered")
-        except asyncio.TimeoutError:
-            outcome.error = f"Connection timed out after {connect_timeout:.0f}s"
-        except Exception as exc:
-            if outcome.connected_at is not None:
-                # Connected and discovered services; only the disconnect
-                # misbehaved. The connection check itself succeeded.
-                break
-            outcome.error = f"Connection failed: {exc.__class__.__name__}: {exc}"
-        if outcome.error is None:
-            break
-        if attempt < connect_attempts:
-            await asyncio.sleep(config.CONNECT_RETRY_DELAY_S)
-
-    if outcome.error is not None and connect_attempts > 1:
-        outcome.error += f" ({connect_attempts} attempts; move the pod closer and rescan)"
+    # 2. Connect (bleak performs service discovery as part of connect)
+    await track("connecting", f"Connecting to {outcome.ble_name} (up to {connect_timeout:.0f}s)")
+    try:
+        async with BleakClient(device, timeout=connect_timeout) as client:
+            if not client.is_connected:
+                raise RuntimeError("connect() returned but client is not connected")
+            outcome.connected_at = _now_iso()
+            outcome.service_count = len(list(client.services))
+            await track("connected", f"Connected, {outcome.service_count} GATT services discovered")
+    except asyncio.TimeoutError:
+        outcome.error = f"Connection timed out after {connect_timeout:.0f}s"
+    except Exception as exc:
+        outcome.error = f"Connection failed: {exc.__class__.__name__}: {exc}"
 
     outcome.passed = outcome.error is None
     outcome.duration_s = round(time.monotonic() - started, 2)

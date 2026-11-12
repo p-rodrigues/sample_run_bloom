@@ -142,62 +142,8 @@ def test_test_pod_fails_when_connection_raises():
             return False
 
     with patch.object(ble, "find_pod", found), patch.object(ble, "BleakClient", FailingClient):
-        outcome = asyncio.run(ble.test_pod("ABC", connect_attempts=1))
+        outcome = asyncio.run(ble.test_pod("ABC"))
 
     assert outcome.passed is False
     assert outcome.ble_name == "BLOOM_MABC"
     assert "connection refused" in outcome.error
-
-
-def _flaky_client(failures):
-    """BleakClient fake whose first ``failures`` connects drop the link."""
-    calls = {"n": 0}
-
-    class FlakyClient:
-        def __init__(self, dev, timeout=None):
-            self.is_connected = False
-            self.services = ["a"]
-
-        async def __aenter__(self):
-            calls["n"] += 1
-            if calls["n"] <= failures:
-                raise RuntimeError("disconnected")
-            self.is_connected = True
-            return self
-
-        async def __aexit__(self, *exc):
-            return False
-
-    return FlakyClient, calls
-
-
-async def _found(serial, timeout, status=None):
-    return (
-        SimpleNamespace(address="AA", name="BLOOM_MABC"),
-        SimpleNamespace(local_name="BLOOM_MABC", rssi=-78),
-    )
-
-
-def test_test_pod_retries_connection_after_link_drop():
-    client, calls = _flaky_client(failures=2)
-    with patch.object(ble, "find_pod", _found), patch.object(ble, "BleakClient", client), \
-            patch.object(ble.config, "CONNECT_RETRY_DELAY_S", 0):
-        outcome = asyncio.run(ble.test_pod("MABC", connect_attempts=3))
-
-    assert calls["n"] == 3
-    assert outcome.passed is True
-    assert outcome.error is None
-    assert outcome.stages == ["found", "connecting", "connecting", "connecting", "connected", "done"]
-
-
-def test_test_pod_fails_after_all_connection_attempts():
-    client, calls = _flaky_client(failures=99)
-    with patch.object(ble, "find_pod", _found), patch.object(ble, "BleakClient", client), \
-            patch.object(ble.config, "CONNECT_RETRY_DELAY_S", 0):
-        outcome = asyncio.run(ble.test_pod("MABC", connect_attempts=3))
-
-    assert calls["n"] == 3
-    assert outcome.passed is False
-    assert "disconnected" in outcome.error
-    assert "3 attempts" in outcome.error
-    assert outcome.connected_at is None
