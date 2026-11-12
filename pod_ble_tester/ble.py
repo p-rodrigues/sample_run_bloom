@@ -1,7 +1,10 @@
 """BLE side of the tester: find a Pod by serial number, connect, report.
 
-Bloom Pods advertise a local name of the form ``BLOOM_<x><serial>`` where
-``<x>`` is a single revision letter (``M`` on current pods). A test consists of:
+Bloom Pods advertise a local name of the form ``BLOOM_<serial>``, where the
+serial is the value scanned from the pod label including its leading revision
+letter (e.g. ``M12345678`` -> ``BLOOM_M12345678``). The ``BLOOM_`` prefix is
+only added when scanning for the pod; everywhere else (UI, database, CSV) the
+serial is kept exactly as scanned. A test consists of:
 
 1. scanning until an advertisement whose name matches the serial is seen,
 2. opening a GATT connection to that device (service discovery included),
@@ -13,7 +16,6 @@ Any failure or timeout along the way is a FAIL with a human readable reason.
 from __future__ import annotations
 
 import asyncio
-import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -30,25 +32,25 @@ StatusCallback = Callable[[str, str], Awaitable[None]]
 
 
 def normalize_serial(raw: str) -> str:
-    """Trim a scanned value and strip a full BLE name down to the bare serial.
+    """Trim a scanned value; drop the ``BLOOM_`` prefix if a full name was pasted.
 
-    Operators may scan the serial printed on the pod, or paste the advertised
-    name. Both end up as the bare serial, e.g. ``"BLOOM_M12345678"`` -> ``"12345678"``.
+    The label scanner yields the serial with its revision letter
+    (``"M12345678"``), which is kept as is. A pasted advertised name
+    (``"BLOOM_M12345678"``) is reduced to the same value.
     """
     value = raw.strip()
-    match = re.fullmatch(re.escape(config.POD_NAME_PREFIX) + r".(.+)", value)
-    if match:
-        value = match.group(1)
+    if value.startswith(config.POD_NAME_PREFIX):
+        value = value[len(config.POD_NAME_PREFIX):]
     return value
 
 
-def expected_name_pattern(serial: str) -> re.Pattern[str]:
-    """Regex matching the advertised name of the pod with ``serial``."""
-    return re.compile(rf"^{re.escape(config.POD_NAME_PREFIX)}.{re.escape(serial)}$")
+def expected_name(serial: str) -> str:
+    """Advertised BLE name of the pod with ``serial`` (``BLOOM_`` + serial)."""
+    return f"{config.POD_NAME_PREFIX}{serial}"
 
 
 def name_matches(serial: str, name: Optional[str]) -> bool:
-    return bool(name) and expected_name_pattern(serial).match(name) is not None
+    return name == expected_name(serial)
 
 
 def _now_iso() -> str:
@@ -89,20 +91,20 @@ async def find_pod(
 
     Raises ``asyncio.TimeoutError`` if nothing matching shows up in ``timeout`` s.
     """
-    pattern = expected_name_pattern(serial)
+    target = expected_name(serial)
     loop = asyncio.get_running_loop()
     found: asyncio.Future[tuple[BLEDevice, AdvertisementData]] = loop.create_future()
 
     def on_advertisement(device: BLEDevice, adv: AdvertisementData) -> None:
         name = adv.local_name or device.name
-        if name and pattern.match(name) and not found.done():
+        if name == target and not found.done():
             found.set_result((device, adv))
 
     async def scan() -> tuple[BLEDevice, AdvertisementData]:
         async with BleakScanner(detection_callback=on_advertisement):
             return await found
 
-    await _emit(status, "scanning", f"Scanning for {config.POD_NAME_PREFIX}?{serial} (up to {timeout:.0f}s)")
+    await _emit(status, "scanning", f"Scanning for {target} (up to {timeout:.0f}s)")
     # The timeout covers scanner start-up too: on macOS the first launch can
     # block on the Bluetooth permission prompt / adapter power-on wait.
     return await asyncio.wait_for(scan(), timeout=timeout)
@@ -129,7 +131,7 @@ async def test_pod(
     try:
         device, adv = await find_pod(serial, scan_timeout, track)
     except asyncio.TimeoutError:
-        outcome.error = f"Pod not found: no advertisement named {config.POD_NAME_PREFIX}?{serial} within {scan_timeout:.0f}s"
+        outcome.error = f"Pod not found: no advertisement named {expected_name(serial)} within {scan_timeout:.0f}s"
         outcome.duration_s = round(time.monotonic() - started, 2)
         await track("done", outcome.error)
         return outcome

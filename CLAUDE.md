@@ -33,8 +33,9 @@ Three layers in `pod_ble_tester/`, wired together in `server.create_app()`:
   (never raises; failures become `error` text). Progress is reported through
   the async `status_cb(stage, message)` with stages
   `scanning, found, connecting, connected, done`. Pods advertise as
-  `BLOOM_<one revision letter><serial>` (current pods use `M`); matching is by
-  regex `^BLOOM_.<serial>$` so the letter is not hard-coded. `normalize_serial`
+  `BLOOM_<serial>`, where the scanned serial already includes the revision
+  letter (`M12345678` → `BLOOM_M12345678`). `expected_name` prepends `BLOOM_`
+  only for the scan; the serial is stored/shown as scanned. `normalize_serial`
   accepts either the bare serial or the full BLE name.
 - `store.py` — `ResultStore`, a thin SQLite wrapper (one row per attempt,
   newest first in the API, chronological in CSV). CSV column order is

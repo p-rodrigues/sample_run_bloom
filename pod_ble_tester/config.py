@@ -5,10 +5,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# Bloom Pods advertise as "<POD_NAME_PREFIX><serial>", e.g. "BLOOM_M12345678".
-# The production tools UI matches the name with the regex /BLOOM_./ so the
-# letter after the underscore may vary between pod revisions; we accept any
-# single character there (see ble.expected_name_pattern).
+# Bloom Pods advertise as "<POD_NAME_PREFIX><serial>". The scanned serial
+# already carries the revision letter ("M12345678"), so the name is simply
+# the prefix + serial, e.g. "BLOOM_M12345678" (see ble.expected_name).
 POD_NAME_PREFIX: str = os.environ.get("POD_NAME_PREFIX", "BLOOM_")
 
 # Seconds to wait for the Pod to show up in a BLE scan before failing.

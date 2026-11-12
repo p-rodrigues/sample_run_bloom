@@ -2,7 +2,7 @@
 
 Checks that a Bloom Pod's Bluetooth works. Scan the Pod's serial number into
 the text box, the tool immediately starts a BLE scan for a device advertising
-as `BLOOM_?<serial>`, connects to it over GATT and records **PASS** or **FAIL**
+as `BLOOM_<serial>`, connects to it over GATT and records **PASS** or **FAIL**
 with the timestamp of the connection. Results accumulate in a table and can be
 downloaded as CSV.
 
@@ -39,14 +39,16 @@ Workflow at the bench:
 4. Scan the next Pod. Pods scanned while a test is running are queued.
 5. Press **Download CSV** at any time to export every result.
 
-A scanned value may be the bare serial or the full BLE name
-(`BLOOM_M12345678`); the prefix is stripped.
+The scanned serial includes the revision letter (`M12345678`) and is stored
+and shown exactly like that. `BLOOM_` is prepended only to build the BLE name
+to scan for (`BLOOM_M12345678`). Pasting the full BLE name also works; the
+`BLOOM_` prefix is stripped.
 
 ## Configuration (environment variables)
 
 | Variable            | Default           | Meaning                                              |
 |---------------------|-------------------|------------------------------------------------------|
-| `POD_NAME_PREFIX`   | `BLOOM_`          | Advertised name is `<prefix><one letter><serial>`    |
+| `POD_NAME_PREFIX`   | `BLOOM_`          | Advertised name is `<prefix><serial>`                 |
 | `SCAN_TIMEOUT_S`    | `20`              | Seconds to wait for the Pod to be seen advertising   |
 | `CONNECT_TIMEOUT_S` | `15`              | Seconds allowed for the GATT connection              |
 | `DB_PATH`           | `data/results.db` | SQLite file holding all results                      |
