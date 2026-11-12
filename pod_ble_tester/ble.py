@@ -147,7 +147,7 @@ async def test_pod(
     await track("found", f"Found {outcome.ble_name} ({device.address}) RSSI {adv.rssi} dBm")
 
     # 2. Connect (bleak performs service discovery as part of connect)
-    await track("connecting", f"Connecting to {outcome.ble_name} (up to {connect_timeout:.0f}s)")
+    await track("connecting", f"Connecting to {outcome.ble_name} at {adv.rssi} dBm (up to {connect_timeout:.0f}s)")
     try:
         async with BleakClient(device, timeout=connect_timeout) as client:
             if not client.is_connected:

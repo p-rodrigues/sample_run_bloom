@@ -43,6 +43,8 @@
   .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
   .badge.PASS { background: var(--pass-bg); color: var(--pass); }
   .badge.FAIL { background: var(--fail-bg); color: var(--fail); }
+  td.rssi { white-space: nowrap; font-weight: 600; }
+  td.sig-good { color: var(--pass); } td.sig-fair { color: var(--text); } td.sig-weak { color: var(--fail); }
   td.err { color: var(--muted); max-width: 360px; }
   .empty { color: var(--muted); text-align: center; padding: 24px; }
   #conn { font-size: 12px; color: var(--muted); }
@@ -96,6 +98,14 @@
     return isNaN(d) ? esc(iso) : d.toLocaleString(undefined, { hour12: false });
   }
 
+  // RSSI as shown to the operator: "-78 dBm (weak)". Closer to 0 is stronger.
+  function fmtRssi(rssi) {
+    if (rssi == null) return '';
+    const q = rssi >= -60 ? 'good' : rssi >= -75 ? 'fair' : 'weak';
+    return rssi + ' dBm (' + q + ')';
+  }
+  function rssiClass(rssi) { return rssi == null ? '' : rssi >= -60 ? 'sig-good' : rssi >= -75 ? 'sig-fair' : 'sig-weak'; }
+
   function setBanner(cls, text, sub) {
     banner.className = cls;
     banner.innerHTML = esc(text) + (sub ? '<small>' + esc(sub) + '</small>' : '');
@@ -116,7 +126,7 @@
         <td>${fmtTime(r.connected_at)}</td>
         <td>${r.duration_s != null ? r.duration_s.toFixed(1) + ' s' : ''}</td>
         <td>${esc(r.ble_name)}</td>
-        <td>${r.rssi != null ? r.rssi + ' dBm' : ''}</td>
+        <td class="rssi ${rssiClass(r.rssi)}">${fmtRssi(r.rssi)}</td>
         <td class="err">${esc(r.error)}</td>
       </tr>`).join('');
   }
@@ -177,8 +187,10 @@
           break;
         case 'result': {
           const r = ev.record;
+          const signal = r.rssi != null ? 'Signal ' + fmtRssi(r.rssi) : '';
+          const detail = r.result === 'PASS' ? 'Connected at ' + fmtTime(r.connected_at) + ' in ' + r.duration_s + ' s' : r.error;
           setBanner(r.result === 'PASS' ? 'pass' : 'fail', r.result + '  ' + r.serial_number,
-                    r.result === 'PASS' ? 'Connected at ' + fmtTime(r.connected_at) + ' in ' + r.duration_s + ' s' : r.error);
+                    [detail, signal].filter(Boolean).join(' · '));
           refresh();
           break;
         }
