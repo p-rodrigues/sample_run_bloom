@@ -51,6 +51,8 @@ to scan for (`BLOOM_M12345678`). Pasting the full BLE name also works; the
 | `POD_NAME_PREFIX`   | `BLOOM_`          | Advertised name is `<prefix><serial>`                 |
 | `SCAN_TIMEOUT_S`    | `20`              | Seconds to wait for the Pod to be seen advertising   |
 | `CONNECT_TIMEOUT_S` | `15`              | Seconds allowed for the GATT connection              |
+| `CONNECT_ATTEMPTS`  | `3`               | Connection tries before FAIL (link drops are retried) |
+| `CONNECT_RETRY_DELAY_S` | `1`           | Seconds to wait between connection tries             |
 | `DB_PATH`           | `data/results.db` | SQLite file holding all results                      |
 | `HOST` / `PORT`     | `127.0.0.1`/`9999`| Where the UI is served                               |
 

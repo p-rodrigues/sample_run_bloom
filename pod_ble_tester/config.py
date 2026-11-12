@@ -16,6 +16,13 @@ SCAN_TIMEOUT_S: float = float(os.environ.get("SCAN_TIMEOUT_S", "20"))
 # Seconds allowed for the GATT connection to be established.
 CONNECT_TIMEOUT_S: float = float(os.environ.get("CONNECT_TIMEOUT_S", "15"))
 
+# How many times to try connecting before failing. Links that drop during
+# connect ("BleakError: disconnected") are usually transient.
+CONNECT_ATTEMPTS: int = int(os.environ.get("CONNECT_ATTEMPTS", "3"))
+
+# Pause between connection attempts.
+CONNECT_RETRY_DELAY_S: float = float(os.environ.get("CONNECT_RETRY_DELAY_S", "1"))
+
 # Where results are persisted (SQLite).
 DATA_DIR: Path = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
 DB_PATH: Path = Path(os.environ.get("DB_PATH", DATA_DIR / "results.db"))

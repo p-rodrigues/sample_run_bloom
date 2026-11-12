@@ -48,7 +48,8 @@ Three layers in `pod_ble_tester/`, wired together in `server.create_app()`:
   `static/index.html` is the whole frontend (vanilla JS, no build step).
 
 Configuration is all in `config.py`, read from environment variables at import
-time. Defaults: `data/results.db`, port 9999, 20 s scan / 15 s connect timeouts.
+time. Defaults: `data/results.db`, port 9999, 20 s scan / 15 s connect timeouts,
+3 connect attempts (1 s apart) before a FAIL.
 
 ## Conventions
 
