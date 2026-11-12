@@ -14,7 +14,7 @@ exportable as CSV. See README.md for operator usage and configuration.
 ```bash
 source .venv/bin/activate          # venv lives in .venv (gitignored)
 pip install -e ".[dev]"            # install package + pytest/httpx
-pod-ble-tester --no-browser        # run the server (http://127.0.0.1:8765)
+pod-ble-tester --no-browser        # run the server (http://127.0.0.1:9999)
 python -m pod_ble_tester.server    # same, without installing the entry point
 pytest                             # all tests
 pytest tests/test_ble.py -k connection   # one test / module
@@ -47,7 +47,7 @@ Three layers in `pod_ble_tester/`, wired together in `server.create_app()`:
   `static/index.html` is the whole frontend (vanilla JS, no build step).
 
 Configuration is all in `config.py`, read from environment variables at import
-time. Defaults: `data/results.db`, port 8765, 20 s scan / 15 s connect timeouts.
+time. Defaults: `data/results.db`, port 9999, 20 s scan / 15 s connect timeouts.
 
 ## Conventions
 
