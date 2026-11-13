@@ -39,18 +39,18 @@ def test_index_served(tmp_path):
 
 
 def test_submit_test_and_get_results(tmp_path):
-    with make_client(tmp_path, result_for=lambda s: s == "GOOD") as client:
+    with make_client(tmp_path, result_for=lambda s: s == "MGOOD") as client:
         r = client.post("/api/test", json={"serial": " BLOOM_MGOOD "})
         assert r.status_code == 202
-        assert r.json()["serial"] == "GOOD"
+        assert r.json()["serial"] == "MGOOD"
         client.post("/api/test", json={"serial": "BAD"})
         wait_idle(client)
 
         data = client.get("/api/results").json()
         assert data["summary"] == {"total": 2, "passed": 1, "failed": 1}
         by_serial = {row["serial_number"]: row for row in data["results"]}
-        assert by_serial["GOOD"]["result"] == "PASS"
-        assert by_serial["GOOD"]["connected_at"] is not None
+        assert by_serial["MGOOD"]["result"] == "PASS"
+        assert by_serial["MGOOD"]["connected_at"] is not None
         assert by_serial["BAD"]["result"] == "FAIL"
 
 
